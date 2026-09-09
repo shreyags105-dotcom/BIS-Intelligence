@@ -1,21 +1,26 @@
-
 # Python generated files
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
 venv/
+env/
 
 # Local environment files
 .env
 .env.*
 !.env.example
+ai/.env
 
 # Frontend dependencies and build output
 frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/build/
+
+# Generated AI/vector database artifacts
+vector_db/*
+!vector_db/.gitkeep
 
 # Editor and operating-system files
 .vscode/
@@ -24,3 +29,4 @@ Thumbs.db
 
 # Excel lock files (created while a file is open in Excel)
 ~$*.xlsx
+
