@@ -3,6 +3,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from ai.rag import ask_bis
+
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
@@ -97,3 +99,11 @@ def test_service_endpoints_exist():
         assert response.status_code == 200
         body = response.json()
         assert body
+
+
+def test_ask_bis_accepts_pressure_cooker_query():
+    result = ask_bis("I want to manufacture a pressure cooker.")
+    assert result["product"] == "Pressure Cooker"
+    assert result["needs_clarification"] is False
+    assert result["intent"] == "MANUFACTURING_GUIDANCE"
+    assert result["answer"]
