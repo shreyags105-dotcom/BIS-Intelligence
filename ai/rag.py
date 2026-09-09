@@ -558,6 +558,29 @@ def is_bis_question(query):
 # GENERATE BIS ANSWER
 # ============================================================
 
+def build_fallback_answer(query, results, product_name=None):
+    if not results:
+        return "I could not find verified BIS information for this query in the available knowledge base."
+
+    first = results[0]
+    product = first.get("product") or product_name or "the product"
+    standard = first.get("standard") or "the relevant Indian Standard"
+    requirements = first.get("requirements") or "No requirement details were found in the verified records."
+    tests = first.get("tests") or "No testing details were found in the verified records."
+    certification = first.get("certification") or "No certification guidance was found in the verified records."
+    source = first.get("source") or "Verified BIS record"
+
+    return (
+        f"Based on the verified BIS records provided, here is the information regarding {product}:\n\n"
+        f"* **Product:** {product}\n"
+        f"* **Applicable Indian Standard:** {standard}\n"
+        f"* **Requirements:** {requirements}\n"
+        f"* **Testing:** {tests}\n"
+        f"* **Certification:** {certification}\n"
+        f"* **Source:** {source}"
+    )
+
+
 def generate_answer(query, results):
 
     if not results:
@@ -704,23 +727,24 @@ BIS knowledge above.
     # LLM
     # --------------------------------------------------------
 
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=user_prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.2,
-            max_output_tokens=800,
-            system_instruction=system_prompt,
-        ),
-    )
-
-    answer = extract_text(response)
-    if not answer:
-        return (
-            "I could not find verified BIS information for this query in the available knowledge base."
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=800,
+                system_instruction=system_prompt,
+            ),
         )
 
-    return answer
+        answer = extract_text(response)
+        if answer:
+            return answer
+    except Exception as exc:
+        print(f"[WARNING] Gemini generate_content failed; using verified-data fallback. Details: {exc}")
+
+    return build_fallback_answer(query, results)
 
 
 # ============================================================
@@ -864,7 +888,63 @@ def detect_product(query):
     return None
 
 
-def build_structured_sections(results, product_name=None):
+def build_ai_explainer(product_name, result):
+    if not result:
+        return "No verified BIS record was available for this product in the current dataset."
+
+    product_label = result.get("product") or product_name or "this product"
+    standard_label = result.get("standard") or "the relevant Indian Standard"
+    return (
+        f"The evidence shows that {product_label} is associated with {standard_label}. "
+        "This explanation is based on the retrieved BIS records and not on general assumptions."
+    )
+
+
+def build_standard_comparison(results):
+    if not results:
+        return "No comparison was possible because no verified BIS records were retrieved."
+
+    valid = [r for r in results if r.get("standard") or r.get("product")]
+    if not valid:
+        return "No comparison was possible because no verified BIS records were retrieved."
+
+    standards = ", ".join(sorted({str(r.get("standard", "")) for r in valid if r.get("standard")})) or "No standard listed"
+    products = ", ".join(sorted({str(r.get("product", "")) for r in valid if r.get("product")})) or "No product listed"
+    return f"Relevant records retrieved for {products}. Ranked standards: {standards}."
+
+
+def build_follow_up_questions(product_name=None, intent=None):
+    if product_name:
+        return [
+            f"Would you like the manufacturing checklist for {product_name}?",
+            "Do you want the testing requirements and certification steps next?",
+            "Would you like a compliance roadmap for this product?",
+        ]
+
+    if intent == "CERTIFICATION":
+        return [
+            "Which product are you certifying?",
+            "Do you want the standard, documents, or certification steps first?",
+        ]
+
+    return [
+        "Which product are you asking about?",
+        "Do you need the standard, testing, or certification guidance?",
+    ]
+
+
+def calculate_confidence(results, product_name=None, intent=None):
+    score = 0.35
+    if product_name:
+        score += 0.20
+    if intent:
+        score += 0.10
+    if results:
+        score += min(0.30, len(results) * 0.10)
+    return round(min(1.0, max(score, 0.0)), 2)
+
+
+def build_structured_sections(results, product_name=None, intent=None):
     sections = {
         "direct_answer": "",
         "why_this_applies": "",
@@ -875,10 +955,17 @@ def build_structured_sections(results, product_name=None):
         "compliance_roadmap": "",
         "next_action": "",
         "sources": [],
-        "trust_status": "verified"
+        "ai_explainer": "",
+        "comparison": "",
+        "follow_up_questions": [],
+        "trust_status": "VERIFIED_BIS_DATA",
+        "confidence": 0.0,
     }
 
     if not results:
+        sections["trust_status"] = "UNVERIFIED"
+        sections["follow_up_questions"] = build_follow_up_questions(product_name=product_name, intent=intent)
+        sections["confidence"] = calculate_confidence([], product_name=product_name, intent=intent)
         return sections
 
     first = results[0]
@@ -898,6 +985,10 @@ def build_structured_sections(results, product_name=None):
     sections["next_action"] = (
         "Review the applicable standard, testing requirements, and certification guidance before proceeding with manufacturing or compliance filing."
     )
+    sections["ai_explainer"] = build_ai_explainer(product_name, first)
+    sections["comparison"] = build_standard_comparison(results)
+    sections["follow_up_questions"] = build_follow_up_questions(product_name=product_name, intent=intent)
+    sections["confidence"] = calculate_confidence(results, product_name=product_name, intent=intent)
     sections["sources"] = [
         {
             "standard": result.get("standard", ""),
@@ -925,7 +1016,8 @@ def ask_bis(query):
             "product": None,
             "needs_clarification": True,
             "confidence": 0.0,
-            "sections": build_structured_sections([]),
+            "follow_up_questions": build_follow_up_questions(),
+            "sections": build_structured_sections([], intent="UNKNOWN"),
         }
 
     # --------------------------------------------------------
@@ -943,7 +1035,8 @@ def ask_bis(query):
             "product": detected_product,
             "needs_clarification": False,
             "confidence": 0.0,
-            "sections": build_structured_sections([]),
+            "follow_up_questions": build_follow_up_questions(product_name=detected_product, intent=detected_intent),
+            "sections": build_structured_sections([], product_name=detected_product, intent=detected_intent),
         }
 
     # --------------------------------------------------------
@@ -960,7 +1053,8 @@ def ask_bis(query):
             "product": None,
             "needs_clarification": True,
             "confidence": 0.35,
-            "sections": build_structured_sections([]),
+            "follow_up_questions": build_follow_up_questions(intent=detected_intent),
+            "sections": build_structured_sections([], intent=detected_intent),
         }
 
     # --------------------------------------------------------
@@ -979,7 +1073,7 @@ def ask_bis(query):
         results
     )
 
-    structured = build_structured_sections(results, product_name=detected_product)
+    structured = build_structured_sections(results, product_name=detected_product, intent=detected_intent)
 
     return {
         "answer": answer,
@@ -987,7 +1081,8 @@ def ask_bis(query):
         "intent": detected_intent,
         "product": detected_product,
         "needs_clarification": False,
-        "confidence": 0.9 if results else 0.4,
+        "confidence": structured["confidence"],
+        "follow_up_questions": structured["follow_up_questions"],
         "sections": structured,
     }
 
