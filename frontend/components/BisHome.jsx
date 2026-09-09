@@ -224,7 +224,7 @@ function ChatView({ mode, initialPrompt, onBack }) {
       if (!response.ok) throw new Error('Chat unavailable');
       const data = await response.json();
       setResult(data);
-      setMessages((current) => [...current, { role: 'ai', text: data.answer }]);
+      setMessages((current) => [...current, { role: 'ai', text: data.direct_answer }]);
     } catch (error) {
       setMessages((current) => [...current, { role: 'ai', text: 'The BIS backend could not be reached. Start the API server and try again.' }]);
     } finally {

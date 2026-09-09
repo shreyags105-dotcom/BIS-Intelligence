@@ -5,6 +5,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data" / "BIS_Intelligence_Rohan_25_Products_VERIFIED_UPDATED.xlsx"
 
+def clean_text(text):
+    if text is None or pd.isna(text):
+        return ""
+    # Fix common Windows-1252 / UTF-8 encoding artifacts
+    cleaned = str(text).replace("â\x80\x93", "–").replace("â", "-").strip()
+    return cleaned
+
 def load_excel_knowledge_base():
     if not DATA_PATH.exists():
         print(f"[WARNING] File not found at {DATA_PATH}. Knowledge base initialized as empty.")
@@ -21,19 +28,19 @@ def load_excel_knowledge_base():
             if pd.isna(product_val) or not str(product_val).strip():
                 continue
 
-            product_name = str(product_val).strip()
-            is_number = str(is_val).strip() if pd.notna(is_val) else ""
+            product_name = clean_text(product_val)
+            is_number = clean_text(is_val)
 
             def parse_list(val):
                 if pd.isna(val) or val is None:
                     return []
-                val_str = str(val).strip()
+                val_str = clean_text(val)
                 if not val_str or val_str.lower() == "nan":
                     return []
                 items = []
                 for line in val_str.splitlines():
                     for item in line.split(";"):
-                        cleaned = item.strip(" •\t\r\n-")
+                        cleaned = clean_text(item.strip(" •\t\r\n-"))
                         if cleaned and cleaned.lower() != "nan":
                             items.append(cleaned)
                 return items
@@ -41,8 +48,8 @@ def load_excel_knowledge_base():
             cert_steps = []
             for i in range(1, 6):
                 step_val = row.get(f"Certification Process — Step {i}")
-                if pd.notna(step_val) and str(step_val).strip() and str(step_val).strip().lower() != "nan":
-                    cert_steps.append(str(step_val).strip())
+                if pd.notna(step_val) and clean_text(step_val) and clean_text(step_val).lower() != "nan":
+                    cert_steps.append(clean_text(step_val))
 
             if not cert_steps:
                 cert_steps = [
@@ -56,15 +63,15 @@ def load_excel_knowledge_base():
                 "intent": "MANUFACTURING_GUIDANCE",
                 "product": product_name,
                 "standard_id": is_number,
-                "standard_title": str(row.get("Standard Title", "")) if pd.notna(row.get("Standard Title")) else "",
+                "standard_title": clean_text(row.get("Standard Title")),
                 "direct_answer": f"For {product_name}, compulsory BIS certification under {is_number} applies.",
-                "why_this_applies": str(row.get("Scope / Applicability", "Mandatory compliance for Indian manufacturing and imports.")) if pd.notna(row.get("Scope / Applicability")) else "Mandatory compliance.",
+                "why_this_applies": clean_text(row.get("Scope / Applicability")) or "Mandatory compliance.",
                 "requirements": parse_list(row.get("Current Requirements from Rohan")) or parse_list(row.get("Construction Requirements")),
                 "safety_requirements": parse_list(row.get("Detailed Safety Requirements")) or parse_list(row.get("Current Safety from Rohan")),
                 "testing": parse_list(row.get("Current Tests from Rohan")) or parse_list(row.get("Test Name")),
                 "documents": parse_list(row.get("Required Documents / Inputs")),
                 "certification": {
-                    "scheme": str(row.get("Certification Scheme / Route (VERIFIED)", "Scheme-I (ISI Mark)")) if pd.notna(row.get("Certification Scheme / Route (VERIFIED)")) else "Scheme-I (ISI Mark)",
+                    "scheme": clean_text(row.get("Certification Scheme / Route (VERIFIED)")) or "Scheme-I (ISI Mark)",
                     "steps": cert_steps
                 },
                 "compliance_roadmap": [
@@ -73,11 +80,11 @@ def load_excel_knowledge_base():
                 ],
                 "related_standards": parse_list(row.get("Related Standards")),
                 "official_source": {
-                    "title": str(row.get("Official Source Title", "BIS Manakonline Portal")) if pd.notna(row.get("Official Source Title")) else "BIS Manakonline Portal",
-                    "url": str(row.get("Official Source URL", "")) if pd.notna(row.get("Official Source URL")) else ""
+                    "title": clean_text(row.get("Official Source Title")) or "BIS Manakonline Portal",
+                    "url": clean_text(row.get("Official Source URL"))
                 },
                 "next_action": f"Review construction and testing limits under {is_number}.",
-                "trust_status": str(row.get("Verification Status", "VERIFIED_ONLY")) if pd.notna(row.get("Verification Status")) else "VERIFIED_ONLY"
+                "trust_status": clean_text(row.get("Verification Status")) or "VERIFIED_ONLY"
             }
 
             kb[product_name.lower()] = entry

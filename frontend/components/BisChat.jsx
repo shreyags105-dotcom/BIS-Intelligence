@@ -135,7 +135,7 @@ export default function BisChat() {
 
       setMessages((prev) => [
         ...prev,
-        { role: 'ai', text: chatResponse.answer },
+        { role: 'ai', text: chatResponse.direct_answer },
       ]);
 
       setActiveCitation({
