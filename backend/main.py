@@ -156,16 +156,51 @@ PRODUCT_KEYWORDS = build_keyword_map(BIS_DATA)
 # 4) Placeholder for Ujwala's AI module
 # -----------------------------------------------------------------------
 # THIS IS THE FUNCTION TO REPLACE ONCE HER REAL AI/RAG PIPELINE IS READY.
- 
+
+
 def get_ai_answer_MOCK(question: str, mode: str) -> dict:
     question_lower = question.lower()
- 
+
+    if any(term in question_lower for term in ["hallmark", "hallmarking"]):
+        return {
+            "answer": (
+                "BIS hallmarking is the process of certifying the purity of gold and silver jewelry. "
+                "Consumers should look for the BIS hallmark, HUID number, and the jeweller's registration details. "
+                "Official BIS information on hallmarking is available through the BIS hallmarking scheme."
+            ),
+            "standard": "N/A",
+            "source": "Bureau of Indian Standards (BIS)",
+            "references": "https://www.bis.gov.in/hallmarking/",
+        }
+
+    if any(term in question_lower for term in ["laboratory", "lab", "testing laboratory", "testing lab"]):
+        return {
+            "answer": (
+                "For product testing and certification, manufacturers should use BIS-recognized or accredited testing laboratories. "
+                "You can identify relevant testing facilities through the official BIS laboratory directory and the specific product certification guidance."
+            ),
+            "standard": "N/A",
+            "source": "Bureau of Indian Standards (BIS)",
+            "references": "https://www.bis.gov.in/",
+        }
+
+    if any(term in question_lower for term in ["certification", "certify", "isi mark"]):
+        return {
+            "answer": (
+                "To obtain BIS certification, a manufacturer typically applies to BIS, submits the product for testing, and then receives approval based on compliance with the relevant Indian Standard. "
+                "The certification outcome is usually the BIS/ISI mark for the product, subject to compliance and scheme requirements."
+            ),
+            "standard": "N/A",
+            "source": "Bureau of Indian Standards (BIS)",
+            "references": "https://www.bis.gov.in/",
+        }
+
     matched_id = None
     for keyword, standard_id in PRODUCT_KEYWORDS.items():
         if keyword in question_lower:
             matched_id = standard_id
             break
- 
+
     if matched_id:
         data = BIS_DATA[matched_id]
         answer = (
@@ -181,12 +216,11 @@ def get_ai_answer_MOCK(question: str, mode: str) -> dict:
             "source": data["source"],
             "references": data["url"],
         }
- 
+
     return {
         "answer": (
             "I can assist with Indian Standards and BIS-related services. "
-            "I don't have verified BIS information for this query yet — "
-            "our knowledge base currently covers a limited set of products."
+            "I do not have verified BIS information for this query."
         ),
         "standard": "N/A",
         "source": "N/A",
