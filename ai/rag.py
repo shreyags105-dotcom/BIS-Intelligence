@@ -45,8 +45,15 @@ else:
     _local_embedder = None
 
 possible_excel_files = [
-    DATA_DIR / "BIS.pdf.xlsx",
+    DATA_DIR / "BIS_Intelligence_25_Products_VERIFIED_UPDATED.xlsx",
+    DATA_DIR / "BIS_Intelligence_25_Products_FILLED.xlsx",
+    DATA_DIR / "BIS_Intelligence_VERIFIED.xlsx",
+    DATA_DIR / "BIS_verified.xlsx",
     DATA_DIR / "bis_data.xlsx",
+    DATA_DIR / "BIS.pdf.xlsx",
+    Path(r"C:\Users\ujwal\Downloads\BIS_Intelligence_25_Products_VERIFIED_UPDATED.xlsx"),
+    Path(r"C:\Users\ujwal\Downloads\BIS_Intelligence_25_Products_FILLED.xlsx"),
+    Path(r"C:\Users\ujwal\Downloads\BIS_Intelligence_VERIFIED.xlsx"),
     PROJECT_ROOT / "bis_data.xlsx",
     PROJECT_ROOT / "BIS.pdf.xlsx",
 ]
@@ -56,27 +63,124 @@ DATA_FILE = VECTOR_DB_DIR / "bis_data.pkl"
 
 
 # ============================================================
+# NORMALIZE EXCEL DATA
+# ============================================================
+
+def normalize_columns(df):
+    alias_map = {
+        "product": "Products",
+        "products": "Products",
+        "product_name": "Products",
+        "standard_no": "IS NO.",
+        "standard_number": "IS NO.",
+        "is_no": "IS NO.",
+        "is_no_": "IS NO.",
+        "is_number": "IS NO.",
+        "indian_standard": "IS NO.",
+        "requirements": "Requirements",
+        "requirement": "Requirements",
+        "current_requirements_from_rohan": "Requirements",
+        "safety": "Safety",
+        "current_safety_from_rohan": "Safety",
+        "tests": "Tests",
+        "test_method": "Tests",
+        "test_methods": "Tests",
+        "current_tests_from_rohan": "Tests",
+        "certification": "Certification",
+        "certification_applicability_verified": "Certification",
+        "scheme": "Scheme",
+        "certification_scheme_route_verified": "Scheme",
+        "bis_service": "BIS Service",
+        "bis_services": "BIS Service",
+        "source": "Source",
+        "purpose": "Purpose",
+        "url": "URL",
+        "official_source": "Source",
+        "related_standards": "Related Standards",
+        "scope": "Scope",
+        "scope_applicability": "Scope",
+        "status": "Status",
+        "verification_date": "Verification Date",
+        "certification_route": "Certification Route",
+        "required_documents": "Required Documents",
+        "laboratory_guidance": "Laboratory Guidance",
+        "inspection_assessment": "Inspection/Assessment",
+        "ongoing_compliance": "Ongoing Compliance",
+        "clauses": "Clauses",
+        "version": "Version",
+        "standard_status_version": "Standard status/version",
+        "construction": "Construction",
+        "materials": "Materials",
+        "manufacturing_process_information": "Manufacturing/process information",
+        "performance": "Performance",
+        "marking": "Marking",
+        "product_type": "Products",
+        "standard_name": "IS NO.",
+        "standard": "IS NO.",
+        "is_2347": "IS NO.",
+    }
+
+    renamed = {}
+    for col in df.columns:
+        raw_name = str(col).strip()
+        normalized = raw_name.lower().replace(" ", "_").replace("-", "_").replace("/", "_")
+        normalized = normalized.replace("(", "").replace(")", "").replace(".", "")
+        renamed[col] = alias_map.get(normalized, raw_name.strip())
+
+    df = df.rename(columns=renamed)
+    df.columns = [str(col).strip() for col in df.columns]
+    df = df.fillna("")
+    return df
+
+
+# ============================================================
 # LOAD EXCEL DATA
 # ============================================================
 
 def load_bis_data():
-
     if not EXCEL_FILE.exists():
         raise FileNotFoundError(
             f"BIS Excel file not found at: {EXCEL_FILE}. "
             "Place the Excel file in the data folder or update the path."
         )
 
-    df = pd.read_excel(EXCEL_FILE)
+    try:
+        excel_file = pd.ExcelFile(EXCEL_FILE)
+    except ImportError as exc:
+        raise ImportError(
+            "Excel support is missing. Install it with: "
+            "& '.\\.venv\\Scripts\\python.exe' -m pip install openpyxl"
+        ) from exc
 
-    # Remove unnecessary spaces from column names
-    df.columns = [
-        str(col).strip()
-        for col in df.columns
+    frames = []
+    for sheet_name in excel_file.sheet_names:
+        df = pd.read_excel(EXCEL_FILE, sheet_name=sheet_name)
+        df = normalize_columns(df)
+        if df.empty:
+            continue
+        frames.append(df)
+
+    if not frames:
+        raise ValueError(f"No valid BIS rows were found in {EXCEL_FILE}.")
+
+    df = pd.concat(frames, ignore_index=True)
+
+    required_columns = [
+        "Products",
+        "IS NO.",
+        "Requirements",
+        "Safety",
+        "Tests",
+        "Certification",
+        "Scheme",
+        "BIS Service",
+        "Source",
+        "Purpose",
+        "URL",
     ]
-
-    # Replace empty values
-    df = df.fillna("")
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = ""
 
     return df
 
@@ -87,34 +191,49 @@ def load_bis_data():
 
 def create_search_text(row):
 
-    return f"""
-Product: {row['Products']}
+    product = row.get("Products", "")
+    standard = row.get("IS NO.", "")
+    requirements = row.get("Requirements", "")
+    safety = row.get("Safety", "")
+    tests = row.get("Tests", "")
+    certification = row.get("Certification", "")
+    scheme = row.get("Scheme", "")
+    service = row.get("BIS Service", "")
+    source = row.get("Source", "")
+    purpose = row.get("Purpose", "")
+    url = row.get("URL", "")
 
-Indian Standard: {row['IS NO.']}
+    return f"""
+Product: {product}
+
+Indian Standard: {standard}
 
 Requirements:
-{row['Requirements']}
+{requirements}
 
 Safety:
-{row['Safety']}
+{safety}
 
 Tests:
-{row['Tests']}
+{tests}
 
 Certification:
-{row['Certification']}
+{certification}
 
 Scheme:
-{row['Scheme']}
+{scheme}
 
 BIS Service:
-{row['BIS Service']}
+{service}
 
 Source:
-{row['Source']}
+{source}
 
 Purpose:
-{row['Purpose']}
+{purpose}
+
+URL:
+{url}
 """
 
 
@@ -313,37 +432,37 @@ def search_bis(query, top_k=3):
             results.append({
 
                 "product":
-                    row["Products"],
+                    row.get("Products", ""),
 
                 "standard":
-                    row["IS NO."],
+                    row.get("IS NO.", ""),
 
                 "requirements":
-                    row["Requirements"],
+                    row.get("Requirements", ""),
 
                 "safety":
-                    row["Safety"],
+                    row.get("Safety", ""),
 
                 "tests":
-                    row["Tests"],
+                    row.get("Tests", ""),
 
                 "certification":
-                    row["Certification"],
+                    row.get("Certification", ""),
 
                 "scheme":
-                    row["Scheme"],
+                    row.get("Scheme", ""),
 
                 "service":
-                    row["BIS Service"],
+                    row.get("BIS Service", ""),
 
                 "source":
-                    row["Source"],
+                    row.get("Source", ""),
 
                 "purpose":
-                    row["Purpose"],
+                    row.get("Purpose", ""),
 
                 "url":
-                    row["URL"],
+                    row.get("URL", ""),
 
                 "distance":
                     float(distance)
@@ -355,24 +474,85 @@ def search_bis(query, top_k=3):
 
 
 # ============================================================
+# SAFE TEXT EXTRACTION
+# ============================================================
+
+def extract_text(response):
+    if response is None:
+        return ""
+
+    if hasattr(response, "text") and response.text is not None:
+        return str(response.text).strip()
+
+    if isinstance(response, dict):
+        text = response.get("text")
+        if text is not None:
+            return str(text).strip()
+
+    candidates = getattr(response, "candidates", None)
+    if candidates:
+        for candidate in candidates:
+            content = getattr(candidate, "content", None)
+            if content is None:
+                continue
+            parts = getattr(content, "parts", None)
+            if not parts:
+                continue
+            for part in parts:
+                value = getattr(part, "text", None)
+                if value is not None:
+                    return str(value).strip()
+
+    return ""
+
+
+# ============================================================
 # BIS RELEVANCE CHECK
 # ============================================================
 
 def is_bis_question(query):
+    text = (query or "").lower().strip()
+    if not text:
+        return False
 
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=(
-            "You are a BIS domain classifier.\n\n"
-            "Determine whether the user's question is related to BIS or Indian Standards.\n"
-            "Return ONLY YES or NO.\n\n"
-            f"Question: {query}"
-        ),
-        config=types.GenerateContentConfig(temperature=0, max_output_tokens=10),
-    )
+    if detect_product(text) is not None:
+        return True
 
-    result = response.text.strip().upper()
-    return result == "YES"
+    if any(keyword in text for keyword in [
+        "bis",
+        "indian standard",
+        "standard",
+        "certification",
+        "hallmark",
+        "testing",
+        "lab",
+        "laboratory",
+        "product compliance",
+        "manufacture",
+        "manufacturing",
+        "quality",
+        "safety requirements",
+        "marking",
+        "license",
+    ]):
+        return True
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=(
+                "You are a BIS domain classifier.\n\n"
+                "Determine whether the user's question is related to BIS or Indian Standards.\n"
+                "Return ONLY YES or NO.\n\n"
+                f"Question: {query}"
+            ),
+            config=types.GenerateContentConfig(temperature=0, max_output_tokens=10),
+        )
+
+        result = extract_text(response).upper()
+        return result == "YES"
+    except Exception:
+        return False
 
 # ============================================================
 # GENERATE BIS ANSWER
@@ -534,7 +714,201 @@ BIS knowledge above.
         ),
     )
 
-    return response.text
+    answer = extract_text(response)
+    if not answer:
+        return (
+            "I could not find verified BIS information for this query in the available knowledge base."
+        )
+
+    return answer
+
+
+# ============================================================
+# INTENT AND PRODUCT DETECTION
+# ============================================================
+
+INTENT_PATTERNS = {
+    "STANDARD_SEARCH": [
+        "what standard applies",
+        "which standard applies",
+        "standard for",
+        "what is the standard",
+        "which standard",
+        "what standard",
+    ],
+    "MANUFACTURING_GUIDANCE": [
+        "how do i manufacture",
+        "manufacture this",
+        "how to manufacture",
+        "make this product",
+        "manufacturing",
+        "how do i make",
+    ],
+    "TESTING": [
+        "what tests",
+        "tests are required",
+        "testing required",
+        "what test",
+        "test methods",
+    ],
+    "CERTIFICATION": [
+        "how do i get bis certification",
+        "certification",
+        "get certified",
+        "bis certification",
+        "certify",
+    ],
+    "DOCUMENTS": [
+        "what documents",
+        "documents do i need",
+        "required documents",
+        "paperwork",
+        "documents",
+    ],
+    "COMPLIANCE": [
+        "am i compliant",
+        "compliance",
+        "compliant",
+        "check compliance",
+    ],
+    "NEXT_ACTION": [
+        "what should i do next",
+        "next action",
+        "what do i do next",
+        "next steps",
+        "roadmap",
+    ],
+}
+
+PRODUCT_KEYWORDS = {
+    "Pressure Cooker": [
+        "pressure cooker",
+        "pressure cookers",
+        "domestic pressure cooker",
+        "cooker",
+    ],
+    "Helmet": [
+        "helmet",
+        "helmets",
+    ],
+    "Cement": [
+        "cement",
+    ],
+    "LED Lamp": [
+        "led lamp",
+        "led lamps",
+        "lamp",
+    ],
+    "LPG Gas Stove": [
+        "lpg gas stove",
+        "gas stove",
+        "stove",
+    ],
+    "Electric Food Mixer": [
+        "electric food mixer",
+        "food mixer",
+        "mixer",
+    ],
+    "Ceiling Fan": [
+        "ceiling fan",
+        "fan",
+    ],
+    "Laptop": [
+        "laptop",
+        "laptops",
+    ],
+    "Headphones": [
+        "headphones",
+        "headphone",
+    ],
+    "Packaged Drinking Water": [
+        "packaged drinking water",
+        "drinking water",
+        "water bottle",
+    ],
+}
+
+
+def detect_intent(query):
+    text = (query or "").lower().strip()
+    if not text:
+        return "UNKNOWN"
+
+    for intent, patterns in INTENT_PATTERNS.items():
+        if any(pattern in text for pattern in patterns):
+            return intent
+
+    if "standard" in text:
+        return "STANDARD_SEARCH"
+    if "manufactur" in text:
+        return "MANUFACTURING_GUIDANCE"
+    if "test" in text:
+        return "TESTING"
+    if "certif" in text:
+        return "CERTIFICATION"
+    if "document" in text:
+        return "DOCUMENTS"
+    if "compliant" in text or "compliance" in text:
+        return "COMPLIANCE"
+    if "next" in text or "roadmap" in text:
+        return "NEXT_ACTION"
+
+    return "UNKNOWN"
+
+
+def detect_product(query):
+    text = (query or "").lower().strip()
+    for product, patterns in PRODUCT_KEYWORDS.items():
+        if any(pattern in text for pattern in patterns):
+            return product
+    return None
+
+
+def build_structured_sections(results, product_name=None):
+    sections = {
+        "direct_answer": "",
+        "why_this_applies": "",
+        "requirements": "",
+        "testing": "",
+        "documents": "",
+        "certification": "",
+        "compliance_roadmap": "",
+        "next_action": "",
+        "sources": [],
+        "trust_status": "verified"
+    }
+
+    if not results:
+        return sections
+
+    first = results[0]
+    sections["direct_answer"] = (
+        f"The most relevant verified BIS record appears to be {first.get('standard', '')} for {first.get('product', product_name or 'this product')}."
+    )
+    sections["why_this_applies"] = (
+        f"This recommendation matches the product and standard information in the verified BIS dataset for {first.get('product', product_name or 'the product')}."
+    )
+    sections["requirements"] = first.get("requirements", "") or "No requirement details were found in the verified records."
+    sections["testing"] = first.get("tests", "") or "No testing details were found in the verified records."
+    sections["documents"] = first.get("documents", "") or "No document list was found in the verified records."
+    sections["certification"] = first.get("certification", "") or "No certification guidance was found in the verified records."
+    sections["compliance_roadmap"] = (
+        "1. Confirm the product and standard.\n2. Review requirements and testing.\n3. Prepare required documents.\n4. Follow BIS certification route."
+    )
+    sections["next_action"] = (
+        "Review the applicable standard, testing requirements, and certification guidance before proceeding with manufacturing or compliance filing."
+    )
+    sections["sources"] = [
+        {
+            "standard": result.get("standard", ""),
+            "product": result.get("product", ""),
+            "source": result.get("source", ""),
+            "url": result.get("url", "")
+        }
+        for result in results
+    ]
+
+    return sections
 
 
 # ============================================================
@@ -543,50 +917,78 @@ BIS knowledge above.
 
 def ask_bis(query):
 
+    if not query or not str(query).strip():
+        return {
+            "answer": "Please ask a BIS-related question.",
+            "results": [],
+            "intent": "UNKNOWN",
+            "product": None,
+            "needs_clarification": True,
+            "confidence": 0.0,
+            "sections": build_structured_sections([]),
+        }
+
     # --------------------------------------------------------
     # STEP 1: Domain check
     # --------------------------------------------------------
+    detected_product = detect_product(query)
+    detected_intent = detect_intent(query)
 
     if not is_bis_question(query):
-
         return {
-
             "answer":
-                "I can assist with Indian Standards "
-                "and BIS-related services. I don't have "
-                "verified BIS information for this query.",
-
-            "results": []
-
+                "I can assist with Indian Standards and BIS-related services. I don't have verified BIS information for this query.",
+            "results": [],
+            "intent": detected_intent or "OUT_OF_SCOPE",
+            "product": detected_product,
+            "needs_clarification": False,
+            "confidence": 0.0,
+            "sections": build_structured_sections([]),
         }
 
+    # --------------------------------------------------------
+    # STEP 2: Ask for clarification when product is missing
+    # --------------------------------------------------------
+    if detected_product is None:
+        return {
+            "answer": (
+                "I can help, but I need the product name first. For example: "
+                "pressure cooker, helmet, cement, or LED lamp."
+            ),
+            "results": [],
+            "intent": detected_intent,
+            "product": None,
+            "needs_clarification": True,
+            "confidence": 0.35,
+            "sections": build_structured_sections([]),
+        }
 
     # --------------------------------------------------------
-    # STEP 2: Search BIS knowledge
+    # STEP 3: Search BIS knowledge
     # --------------------------------------------------------
-
     results = search_bis(
         query,
         top_k=3
     )
 
-
     # --------------------------------------------------------
-    # STEP 3: Generate answer
+    # STEP 4: Generate answer
     # --------------------------------------------------------
-
     answer = generate_answer(
         query,
         results
     )
 
+    structured = build_structured_sections(results, product_name=detected_product)
 
     return {
-
         "answer": answer,
-
-        "results": results
-
+        "results": results,
+        "intent": detected_intent,
+        "product": detected_product,
+        "needs_clarification": False,
+        "confidence": 0.9 if results else 0.4,
+        "sections": structured,
     }
 
 
