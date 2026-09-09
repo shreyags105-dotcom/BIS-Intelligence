@@ -64,7 +64,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 relative">
-            {/* Bell Button */}
+            {/* Bell Button with Dynamic Badge Count */}
             <button 
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
               className="p-2.5 rounded-xl bg-[#FFF9F1] border border-[#E1D1BC] text-[#5A3D2E] hover:bg-[#EFE1CF] transition shadow-xs relative focus:outline-hidden"
@@ -72,7 +72,9 @@ export default function DashboardPage() {
             >
               <Bell className="w-4 h-4" />
               {notifications.length > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-amber-600 rounded-full" />
+                <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-bold rounded-full min-w-[18px] text-center shadow-xs">
+                  {notifications.length}
+                </span>
               )}
             </button>
 
@@ -257,7 +259,7 @@ export default function DashboardPage() {
               {recentSearches.map((item, idx) => (
                 <Link
                   key={idx}
-                  href="/chat"
+                  href={`/chat?q=${encodeURIComponent(item)}`}
                   className="p-3 bg-[#FBF5EC] hover:bg-[#F2E4D2] border border-[#E3D5C3] rounded-xl text-xs font-medium text-[#4A3427] transition block truncate"
                 >
                   {item}

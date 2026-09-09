@@ -3,6 +3,5 @@
   "/compliance/page": "app/compliance/page.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/documents/page": "app/documents/page.js",
-  "/page": "app/page.js",
   "/standards/page": "app/standards/page.js"
 }
