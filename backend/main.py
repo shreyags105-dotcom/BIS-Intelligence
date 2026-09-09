@@ -2,11 +2,12 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Optional
 
 import models
 from database import engine, get_db
 from auth import hash_password, verify_password, create_access_token
-from knowledge_base import get_standard_by_id
+from knowledge_base import query_knowledge_base, get_standard_by_id
 
 # 1. DEFINE THE APP INSTANCE FIRST
 app = FastAPI(title="BIS AI Assistant API")
@@ -42,11 +43,11 @@ class TokenResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
-    mode: str = "consumer"
+    mode: Optional[str] = "consumer"
 
 class ComplianceRequest(BaseModel):
     product_name: str
-    standard_id: str = "IS 2347"
+    standard_id: Optional[str] = "IS 2347"
 
 
 # --- AUTH ENDPOINTS ---
@@ -86,64 +87,21 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 # --- CORE AI & CHAT ENDPOINTS ---
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
-    query = request.question.lower()
-    
-    if "pressure cooker" in query or "is 2347" in query or "is2347" in query:
-        kb_item = get_standard_by_id("IS 2347")
-        return {
-            "intent": "MANUFACTURING_GUIDANCE" if request.mode == "industry" else "STANDARD_SEARCH",
-            "product": kb_item["product_name"],
-            "standard_id": kb_item["standard_id"],
-            "direct_answer": f"For {kb_item['product_name']}, compulsory BIS certification under {kb_item['standard_id']} applies.",
-            "why_this_applies": kb_item["scope"],
-            "requirements": kb_item["requirements"],
-            "testing": kb_item["testing"],
-            "documents": kb_item["documents"],
-            "certification": {
-                "scheme": kb_item["certification_scheme"],
-                "steps": [
-                    "Step 1: Set up in-house lab equipment according to IS 2347.",
-                    "Step 2: Submit application Form-V on Manakonline.",
-                    "Step 3: Factory inspection by BIS officer & sample drawing.",
-                    "Step 4: Grant of ISI mark license upon successful testing."
-                ]
-            },
-            "compliance_roadmap": [
-                {"step": 1, "title": "Factory & Lab Setup", "status": "completed"},
-                {"step": 2, "title": "Documentation Submission", "status": "in_progress"},
-                {"step": 3, "title": "Factory Audit", "status": "pending"},
-                {"step": 4, "title": "Grant of License", "status": "pending"}
-            ],
-            "next_action": "Verify calibration certificates for hydrostatic pressure testing apparatus.",
-            "sources": kb_item["sources"],
-            "trust_status": "VERIFIED_BIS_DATA"
-        }
-    
-    return {
-        "intent": "UNSUPPORTED",
-        "product": None,
-        "standard_id": None,
-        "direct_answer": "Verified BIS information could not be found for this query.",
-        "why_this_applies": None,
-        "requirements": [],
-        "testing": [],
-        "documents": [],
-        "certification": {},
-        "compliance_roadmap": [],
-        "next_action": "Please try searching for an official BIS standard (e.g., Pressure Cooker - IS 2347).",
-        "sources": [],
-        "trust_status": "UNVERIFIED"
-    }
+    try:
+        # Dynamically query Rohan's 25 products from the knowledge base
+        return query_knowledge_base(request.question, mode=request.mode or "consumer")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/compliance-plan")
 def generate_compliance_plan(request: ComplianceRequest):
-    kb_item = get_standard_by_id(request.standard_id)
-    if not kb_item:
+    kb_item = get_standard_by_id(request.standard_id or request.product_name)
+    if not kb_item or kb_item.get("intent") == "UNSUPPORTED":
         raise HTTPException(status_code=404, detail="Standard not found in knowledge base")
     
     return {
-        "product": kb_item["product_name"],
-        "standard_id": kb_item["standard_id"],
+        "product": kb_item.get("product", request.product_name),
+        "standard_id": kb_item.get("standard_id", request.standard_id),
         "overall_progress_percentage": 25,
         "checklist": [
             {"id": "c1", "category": "Requirements", "task": "Raw Material Verification", "done": True},

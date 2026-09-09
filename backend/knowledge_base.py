@@ -2,52 +2,48 @@ import os
 import pandas as pd
 from pathlib import Path
 
-# Path to Rohan's 25 Products Excel file
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data" / "BIS_Intelligence_Rohan_25_Products_VERIFIED_UPDATED.xlsx"
 
 def load_excel_knowledge_base():
-    """
-    Parses Rohan's 25-product Excel dataset and structures it into
-    the JSON contract expected by the frontend /chat endpoint.
-    """
     if not DATA_PATH.exists():
         print(f"[WARNING] File not found at {DATA_PATH}. Knowledge base initialized as empty.")
         return {}
 
     try:
-        # Load Excel sheet
         df = pd.read_excel(DATA_PATH)
-        
         kb = {}
 
         for _, row in df.iterrows():
-            product_name = str(row.get("Product", "")).strip()
-            is_number = str(row.get("IS Number", "")).strip()
+            product_val = row.get("Product")
+            is_val = row.get("IS Number")
 
-            if not product_name or pd.isna(row.get("Product")):
+            if pd.isna(product_val) or not str(product_val).strip():
                 continue
 
-            # Keys for primary lookup
-            key = product_name.lower()
+            product_name = str(product_val).strip()
+            is_number = str(is_val).strip() if pd.notna(is_val) else ""
 
-            # Helper function to split text into clean list items
             def parse_list(val):
-                if pd.isna(val) or not val:
+                if pd.isna(val) or val is None:
                     return []
                 val_str = str(val).strip()
-                # Split by semicolon, newline, or bullet points
-                items = [i.strip(" •\t\r\n-") for i.splitlines() for i in val_str.split(";")]
-                return [i for i in items if i]
+                if not val_str or val_str.lower() == "nan":
+                    return []
+                items = []
+                for line in val_str.splitlines():
+                    for item in line.split(";"):
+                        cleaned = item.strip(" •\t\r\n-")
+                        if cleaned and cleaned.lower() != "nan":
+                            items.append(cleaned)
+                return items
 
-            # Build standard steps list from Rohan's step columns
             cert_steps = []
             for i in range(1, 6):
                 step_val = row.get(f"Certification Process — Step {i}")
-                if pd.notna(step_val) and str(step_val).strip():
+                if pd.notna(step_val) and str(step_val).strip() and str(step_val).strip().lower() != "nan":
                     cert_steps.append(str(step_val).strip())
 
-            # Fallback if no specific steps listed
             if not cert_steps:
                 cert_steps = [
                     "Factory & Lab Setup",
@@ -56,57 +52,57 @@ def load_excel_knowledge_base():
                     "Grant of License"
                 ]
 
-            # Map to expected API response payload
-            kb[key] = {
+            entry = {
                 "intent": "MANUFACTURING_GUIDANCE",
                 "product": product_name,
                 "standard_id": is_number,
-                "standard_title": str(row.get("Standard Title", "")),
-                "direct_answer": f"For {product_name}, compulsory BIS certification under {is_number} applies ({row.get('Standard Status / Current Version', 'Active')}).",
-                "why_this_applies": str(row.get("Scope / Applicability", "Mandatory compliance for Indian manufacturing and imports.")),
-                "requirements": parse_list(row.get("Current Requirements from Rohan", "")) or parse_list(row.get("Construction Requirements", "")),
-                "safety_requirements": parse_list(row.get("Detailed Safety Requirements", "")) or parse_list(row.get("Current Safety from Rohan", "")),
-                "testing": parse_list(row.get("Current Tests from Rohan", "")) or parse_list(row.get("Test Name", "")),
-                "documents": parse_list(row.get("Required Documents / Inputs", "")),
+                "standard_title": str(row.get("Standard Title", "")) if pd.notna(row.get("Standard Title")) else "",
+                "direct_answer": f"For {product_name}, compulsory BIS certification under {is_number} applies.",
+                "why_this_applies": str(row.get("Scope / Applicability", "Mandatory compliance for Indian manufacturing and imports.")) if pd.notna(row.get("Scope / Applicability")) else "Mandatory compliance.",
+                "requirements": parse_list(row.get("Current Requirements from Rohan")) or parse_list(row.get("Construction Requirements")),
+                "safety_requirements": parse_list(row.get("Detailed Safety Requirements")) or parse_list(row.get("Current Safety from Rohan")),
+                "testing": parse_list(row.get("Current Tests from Rohan")) or parse_list(row.get("Test Name")),
+                "documents": parse_list(row.get("Required Documents / Inputs")),
                 "certification": {
-                    "scheme": str(row.get("Certification Scheme / Route (VERIFIED)", "Scheme-I (ISI Mark)")),
+                    "scheme": str(row.get("Certification Scheme / Route (VERIFIED)", "Scheme-I (ISI Mark)")) if pd.notna(row.get("Certification Scheme / Route (VERIFIED)")) else "Scheme-I (ISI Mark)",
                     "steps": cert_steps
                 },
                 "compliance_roadmap": [
                     {"step": idx + 1, "title": step_name, "status": "completed" if idx == 0 else ("in_progress" if idx == 1 else "pending")}
                     for idx, step_name in enumerate(cert_steps)
                 ],
-                "related_standards": parse_list(row.get("Related Standards", "")),
+                "related_standards": parse_list(row.get("Related Standards")),
                 "official_source": {
-                    "title": str(row.get("Official Source Title", "BIS Manakonline Portal")),
-                    "url": str(row.get("Official Source URL", ""))
+                    "title": str(row.get("Official Source Title", "BIS Manakonline Portal")) if pd.notna(row.get("Official Source Title")) else "BIS Manakonline Portal",
+                    "url": str(row.get("Official Source URL", "")) if pd.notna(row.get("Official Source URL")) else ""
                 },
                 "next_action": f"Review construction and testing limits under {is_number}.",
-                "trust_status": str(row.get("Verification Status", "VERIFIED_ONLY"))
+                "trust_status": str(row.get("Verification Status", "VERIFIED_ONLY")) if pd.notna(row.get("Verification Status")) else "VERIFIED_ONLY"
             }
 
-        print(f"[SUCCESS] Successfully loaded {len(kb)} verified products into Knowledge Base.")
+            kb[product_name.lower()] = entry
+            if is_number:
+                kb[is_number.lower()] = entry
+
+        print(f"[SUCCESS] Loaded {len(kb)} verified product keys into Knowledge Base.")
         return kb
 
     except Exception as e:
         print(f"[ERROR] Failed to load Excel knowledge base: {e}")
         return {}
 
-# Load on startup
 KNOWLEDGE_BASE = load_excel_knowledge_base()
 
 def query_knowledge_base(question: str, mode: str = "industry") -> dict:
-    """
-    Lookup matching product or IS Number from Rohan's loaded dataset.
-    """
-    question_lower = question.lower()
+    if not question:
+        question = ""
+    question_lower = str(question).lower()
 
-    # Search by product name or IS Number
     for product_key, data in KNOWLEDGE_BASE.items():
-        if product_key in question_lower or data["standard_id"].lower() in question_lower:
+        std_id = str(data.get("standard_id", "")).lower()
+        if (product_key and product_key in question_lower) or (std_id and std_id in question_lower):
             return data
 
-    # Fallback for out-of-scope products
     return {
         "intent": "UNSUPPORTED",
         "product": "",
@@ -125,3 +121,6 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
         "next_action": "Please search for one of the 25 covered products (e.g., Helmet, Toys, Pressure Cooker, Stainless Steel Water Bottle).",
         "trust_status": "UNVERIFIED"
     }
+
+def get_standard_by_id(standard_id: str) -> dict:
+    return query_knowledge_base(standard_id)
