@@ -1,5 +1,5 @@
-import BisChat from '@/components/BisChat';
+import BisHome from '@/components/BisHome';
 
 export default function Home() {
-  return <BisChat />;
+  return <BisHome />;
 }

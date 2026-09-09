@@ -1,0 +1,181 @@
+'use client';
+
+import Link from 'next/link';
+import { 
+  Bot, 
+  CheckCircle2, 
+  Search, 
+  FileText, 
+  Sparkles, 
+  ArrowRight,
+  Clock,
+  ShieldAlert,
+  Bell
+} from 'lucide-react';
+
+export default function DashboardPage() {
+  const recentSearches = [
+    'IS 2347 Domestic Pressure Cooker Safety',
+    'Gold Hallmarking 6-digit HUID Rules',
+    'IS 14543 Packaged Drinking Water Limits',
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#F4EBDD] text-[#3B2A20] p-6 md:p-10 font-sans">
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E1D1BC] pb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-black text-[#3A261C]">Welcome Back 👋</h1>
+              <span className="bg-[#D6B98C] text-[#3A261C] text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Pro
+              </span>
+            </div>
+            <p className="text-sm text-[#705543] mt-1 font-medium">
+              Bureau of Indian Standards — Intelligent Desk
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="p-2.5 rounded-xl bg-[#FFF9F1] border border-[#E1D1BC] text-[#5A3D2E] hover:bg-[#EFE1CF] transition shadow-xs relative">
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-amber-600 rounded-full" />
+            </button>
+            <Link
+              href="/chat"
+              className="flex items-center gap-2 bg-[#5A3D2E] hover:bg-[#704C38] text-[#FFF8EE] px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#D6B98C]" />
+              <span>Ask BIS AI</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Hero Quick Action Section */}
+        <div className="bg-[#FFF9F1] rounded-3xl p-6 md:p-8 border border-[#E1D1BC] shadow-sm space-y-4">
+          <h2 className="text-lg font-black text-[#3A261C]">What is on your mind?</h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link
+              href="/chat"
+              className="p-5 bg-[#F9EFE3] hover:bg-[#F2E4D2] border border-[#E0D0BB] hover:border-[#9A7652] rounded-2xl transition shadow-xs flex flex-col justify-between h-36 group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#5A3D2E] text-[#FFF8EE] flex items-center justify-center shadow-xs">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-sm text-[#3A261C] block">Ask BIS AI</span>
+                  <span className="text-xs text-[#806044]">Instant standard answers</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-[#8A6447] group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            <Link
+              href="/compliance"
+              className="p-5 bg-[#F9EFE3] hover:bg-[#F2E4D2] border border-[#E0D0BB] hover:border-[#9A7652] rounded-2xl transition shadow-xs flex flex-col justify-between h-36 group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#5A3D2E] text-[#FFF8EE] flex items-center justify-center shadow-xs">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-sm text-[#3A261C] block">Check Compliance</span>
+                  <span className="text-xs text-[#806044]">Track active audits</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-[#8A6447] group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            <Link
+  href="/standards"
+  className="p-5 bg-[#F9EFE3] hover:bg-[#F2E4D2] border border-[#E0D0BB] hover:border-[#9A7652] rounded-2xl transition shadow-xs flex flex-col justify-between h-36 group"
+>
+  <div className="w-10 h-10 rounded-xl bg-[#5A3D2E] text-[#FFF8EE] flex items-center justify-center shadow-xs">
+    <Search className="w-5 h-5" />
+  </div>
+  <div className="flex items-center justify-between">
+    <div>
+      <span className="font-bold text-sm text-[#3A261C] block">Search Standards</span>
+      <span className="text-xs text-[#806044]">IS Index Database</span>
+    </div>
+    <ArrowRight className="w-4 h-4 text-[#8A6447] group-hover:translate-x-1 transition-transform" />
+  </div>
+</Link>
+
+            <div className="p-5 bg-[#FFFDF9] border border-[#E1D1BC] rounded-2xl opacity-75 flex flex-col justify-between h-36">
+              <div className="w-10 h-10 rounded-xl bg-[#EADBC8] text-[#5A3D2E] flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-sm text-[#3A261C] block">Analyze Document</span>
+                <span className="text-xs text-[#806044]">PDF Audit Verification</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Active Compliance Overview */}
+          <div className="lg:col-span-2 bg-[#FFF9F1] rounded-3xl p-6 border border-[#E1D1BC] shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E3D5C3] pb-3">
+              <h3 className="font-bold text-sm text-[#3A261C]">Active Compliance Overview</h3>
+              <Link href="/compliance" className="text-xs font-bold text-[#8A6447] hover:underline">
+                View Plan
+              </Link>
+            </div>
+
+            <div className="p-4 bg-[#F2E4D2] rounded-2xl border border-[#DCC5A8] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#806044] tracking-wider">
+                  IS 2347 Certification
+                </span>
+                <h4 className="font-black text-lg text-[#3A261C]">PRESSURE COOKER</h4>
+                <p className="text-xs text-[#6B5242] mt-0.5">Status: Testing Protocols Stage</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="text-xl font-black text-[#5A3D2E]">65%</span>
+                  <p className="text-[10px] text-[#806044]">Completed</p>
+                </div>
+                <Link
+                  href="/compliance"
+                  className="bg-[#5A3D2E] hover:bg-[#704C38] text-[#FFF8EE] px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0"
+                >
+                  Resume
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity Panel */}
+          <div className="bg-[#FFF9F1] rounded-3xl p-6 border border-[#E1D1BC] shadow-sm space-y-4">
+            <div className="flex items-center gap-2 border-b border-[#E3D5C3] pb-3">
+              <Clock className="w-4 h-4 text-[#8A6447]" />
+              <h3 className="font-bold text-sm text-[#3A261C]">Recent Queries</h3>
+            </div>
+
+            <div className="space-y-2">
+              {recentSearches.map((item, idx) => (
+                <Link
+                  key={idx}
+                  href="/chat"
+                  className="p-3 bg-[#FBF5EC] hover:bg-[#F2E4D2] border border-[#E3D5C3] rounded-xl text-xs font-medium text-[#4A3427] transition block truncate"
+                >
+                  {item}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
