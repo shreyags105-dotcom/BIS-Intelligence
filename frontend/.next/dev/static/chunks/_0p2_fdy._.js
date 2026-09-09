@@ -55,6 +55,7 @@ function BisChat() {
         if (!input.trim() || loading) return;
         const userMessage = input.trim();
         setInput('');
+        // Add user message to state
         setMessages((prev)=>[
                 ...prev,
                 {
@@ -63,43 +64,30 @@ function BisChat() {
                 }
             ]);
         setLoading(true);
-        try {
-            const response = await fetch('http://127.0.0.1:8000/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    query: userMessage
-                })
-            });
-            if (!response.ok) throw new Error('Failed to connect to server');
-            const data = await response.json();
+        // Mock API response delay (1 second)
+        setTimeout(()=>{
+            const mockResponse = {
+                answer: `According to standard guidelines for "${userMessage}", products must undergo physical testing, chemical compliance analysis, and safety verification under the prescribed Bureau of Indian Standards procedures.`,
+                standard: 'IS 269 : 2015',
+                references: 'Clause 6.2 - Sampling, Chemical Requirements & Physical Test Procedures',
+                source: 'BIS Standards & Guidance Directory',
+                mode: 'Mock Data Mode'
+            };
             setMessages((prev)=>[
                     ...prev,
                     {
                         role: 'ai',
-                        text: data.answer || 'No response text received.'
+                        text: mockResponse.answer
                     }
                 ]);
             setActiveCitation({
-                standard: data.standard || 'General Query',
-                references: data.references || 'No specific clause reference provided.',
-                source: data.source || 'BIS Guidance Directory',
-                mode: data.mode || 'Standard RAG'
+                standard: mockResponse.standard,
+                references: mockResponse.references,
+                source: mockResponse.source,
+                mode: mockResponse.mode
             });
-        } catch (err) {
-            console.error(err);
-            setMessages((prev)=>[
-                    ...prev,
-                    {
-                        role: 'ai',
-                        text: '⚠️ Unable to connect to the backend server at http://127.0.0.1:8000. Please ensure the FastAPI server is running.'
-                    }
-                ]);
-        } finally{
             setLoading(false);
-        }
+        }, 1000);
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "flex flex-col h-screen bg-slate-100 text-slate-800",
@@ -115,7 +103,7 @@ function BisChat() {
                                 children: "BIS"
                             }, void 0, false, {
                                 fileName: "[project]/components/BisChat.jsx",
-                                lineNumber: 90,
+                                lineNumber: 81,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -128,13 +116,13 @@ function BisChat() {
                                                 className: "w-4 h-4 text-amber-400 animate-pulse"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 96,
+                                                lineNumber: 87,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 94,
+                                        lineNumber: 85,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -142,49 +130,49 @@ function BisChat() {
                                         children: "Bureau of Indian Standards • SIH Intelligent Agent"
                                     }, void 0, false, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 98,
+                                        lineNumber: 89,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/BisChat.jsx",
-                                lineNumber: 93,
+                                lineNumber: 84,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/BisChat.jsx",
-                        lineNumber: 89,
+                        lineNumber: 80,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "flex items-center gap-2",
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                            className: "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30",
+                            className: "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30",
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    className: "w-2 h-2 bg-emerald-400 rounded-full animate-ping"
+                                    className: "w-2 h-2 bg-amber-400 rounded-full animate-ping"
                                 }, void 0, false, {
                                     fileName: "[project]/components/BisChat.jsx",
-                                    lineNumber: 106,
+                                    lineNumber: 97,
                                     columnNumber: 13
                                 }, this),
-                                "Backend Connected (Port 8000)"
+                                "Frontend Mode (Mock Responses Active)"
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/BisChat.jsx",
-                            lineNumber: 105,
+                            lineNumber: 96,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/BisChat.jsx",
-                        lineNumber: 104,
+                        lineNumber: 95,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/BisChat.jsx",
-                lineNumber: 88,
+                lineNumber: 79,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -205,12 +193,12 @@ function BisChat() {
                                                         className: "w-5 h-5"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 124,
+                                                        lineNumber: 115,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/BisChat.jsx",
-                                                    lineNumber: 123,
+                                                    lineNumber: 114,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -218,7 +206,7 @@ function BisChat() {
                                                     children: msg.text
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/BisChat.jsx",
-                                                    lineNumber: 128,
+                                                    lineNumber: 119,
                                                     columnNumber: 17
                                                 }, this),
                                                 msg.role === 'user' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -227,18 +215,18 @@ function BisChat() {
                                                         className: "w-5 h-5"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 140,
+                                                        lineNumber: 131,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/BisChat.jsx",
-                                                    lineNumber: 139,
+                                                    lineNumber: 130,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, index, true, {
                                             fileName: "[project]/components/BisChat.jsx",
-                                            lineNumber: 116,
+                                            lineNumber: 107,
                                             columnNumber: 15
                                         }, this)),
                                     loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -250,12 +238,12 @@ function BisChat() {
                                                     className: "w-5 h-5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/BisChat.jsx",
-                                                    lineNumber: 149,
+                                                    lineNumber: 140,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 148,
+                                                lineNumber: 139,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -265,39 +253,39 @@ function BisChat() {
                                                         className: "w-4 h-4 text-indigo-600 animate-spin"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 152,
+                                                        lineNumber: 143,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         children: "Searching BIS Standards & Clauses..."
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 153,
+                                                        lineNumber: 144,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 151,
+                                                lineNumber: 142,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 147,
+                                        lineNumber: 138,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         ref: chatEndRef
                                     }, void 0, false, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 157,
+                                        lineNumber: 148,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/BisChat.jsx",
-                                lineNumber: 114,
+                                lineNumber: 105,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -312,7 +300,7 @@ function BisChat() {
                                         className: "flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 text-sm shadow-inner"
                                     }, void 0, false, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 164,
+                                        lineNumber: 155,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -324,32 +312,32 @@ function BisChat() {
                                                 children: "Send"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 176,
+                                                lineNumber: 167,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$send$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Send$3e$__["Send"], {
                                                 className: "w-4 h-4"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 177,
+                                                lineNumber: 168,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 171,
+                                        lineNumber: 162,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/BisChat.jsx",
-                                lineNumber: 160,
+                                lineNumber: 151,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/BisChat.jsx",
-                        lineNumber: 113,
+                        lineNumber: 104,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -367,20 +355,20 @@ function BisChat() {
                                                         className: "w-5 h-5 text-indigo-600"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 186,
+                                                        lineNumber: 177,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         children: "Source Grounding & Evidence"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 187,
+                                                        lineNumber: 178,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 185,
+                                                lineNumber: 176,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -388,13 +376,13 @@ function BisChat() {
                                                 children: activeCitation.mode
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 189,
+                                                lineNumber: 180,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 184,
+                                        lineNumber: 175,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -407,20 +395,20 @@ function BisChat() {
                                                         className: "w-4 h-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 196,
+                                                        lineNumber: 187,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         children: "Applicable Standard"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 197,
+                                                        lineNumber: 188,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 195,
+                                                lineNumber: 186,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -428,13 +416,13 @@ function BisChat() {
                                                 children: activeCitation.standard
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 199,
+                                                lineNumber: 190,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 194,
+                                        lineNumber: 185,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -449,14 +437,14 @@ function BisChat() {
                                                                 className: "w-3.5 h-3.5 text-slate-400"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/BisChat.jsx",
-                                                                lineNumber: 207,
+                                                                lineNumber: 198,
                                                                 columnNumber: 19
                                                             }, this),
                                                             "Clause & Document Reference"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 206,
+                                                        lineNumber: 197,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -464,13 +452,13 @@ function BisChat() {
                                                         children: activeCitation.references
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 210,
+                                                        lineNumber: 201,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 205,
+                                                lineNumber: 196,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -482,14 +470,14 @@ function BisChat() {
                                                                 className: "w-3.5 h-3.5 text-slate-400"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/BisChat.jsx",
-                                                                lineNumber: 217,
+                                                                lineNumber: 208,
                                                                 columnNumber: 19
                                                             }, this),
                                                             "Source Data Provider"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 216,
+                                                        lineNumber: 207,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -497,25 +485,25 @@ function BisChat() {
                                                         children: activeCitation.source
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/BisChat.jsx",
-                                                        lineNumber: 220,
+                                                        lineNumber: 211,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 215,
+                                                lineNumber: 206,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 204,
+                                        lineNumber: 195,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/BisChat.jsx",
-                                lineNumber: 183,
+                                lineNumber: 174,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -525,7 +513,7 @@ function BisChat() {
                                         className: "w-5 h-5 text-emerald-600 shrink-0"
                                     }, void 0, false, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 228,
+                                        lineNumber: 219,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -535,38 +523,38 @@ function BisChat() {
                                                 children: "Verified Traceability:"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/BisChat.jsx",
-                                                lineNumber: 230,
+                                                lineNumber: 221,
                                                 columnNumber: 15
                                             }, this),
                                             " Grounded in official BIS standards."
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/BisChat.jsx",
-                                        lineNumber: 229,
+                                        lineNumber: 220,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/BisChat.jsx",
-                                lineNumber: 227,
+                                lineNumber: 218,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/BisChat.jsx",
-                        lineNumber: 182,
+                        lineNumber: 173,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/BisChat.jsx",
-                lineNumber: 112,
+                lineNumber: 103,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/BisChat.jsx",
-        lineNumber: 87,
+        lineNumber: 78,
         columnNumber: 5
     }, this);
 }
