@@ -1,5 +1,6 @@
 import os
 import pickle
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -28,23 +29,40 @@ VECTOR_DB_DIR = PROJECT_ROOT / "vector_db"
 load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(AI_DIR / ".env")
 
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise RuntimeError(
-        "GEMINI_API_KEY is not set. Add it to the .env file in the project root or in ai/.env."
-    )
-
-client = genai.Client(api_key=api_key)
-
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001").strip()
 
-if SentenceTransformer is not None:
+_client = None
+_local_embedder = None
+_covered_products = None
+
+
+def _get_client():
+    """Lazily create the Gemini client so imports never crash without an API key."""
+    global _client
+    if _client is not None:
+        return _client
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not set. Add it to the .env file in the project root or in ai/.env."
+        )
+    _client = genai.Client(api_key=api_key)
+    return _client
+
+
+def _get_local_embedder():
+    """Lazily load the local embedding model (avoids big downloads at import time)."""
+    global _local_embedder
+    if _local_embedder is not None:
+        return _local_embedder
+    if SentenceTransformer is None:
+        raise ImportError("sentence-transformers is not installed.")
     _local_embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-else:
-    _local_embedder = None
+    return _local_embedder
 
 possible_excel_files = [
+    DATA_DIR / "BIS_Intelligence_Rohan_25_Products_VERIFIED_UPDATED.xlsx",
     DATA_DIR / "BIS_Intelligence_25_Products_VERIFIED_UPDATED.xlsx",
     DATA_DIR / "BIS_Intelligence_25_Products_FILLED.xlsx",
     DATA_DIR / "BIS_Intelligence_VERIFIED.xlsx",
@@ -241,11 +259,11 @@ URL:
 # CREATE EMBEDDING
 # ============================================================
 
-def create_embedding(text):
+def create_embedding(text, force_local=False):
 
-    if EMBEDDING_MODEL:
+    if EMBEDDING_MODEL and not force_local:
         try:
-            response = client.models.embed_content(
+            response = _get_client().models.embed_content(
                 model=EMBEDDING_MODEL,
                 contents=text,
                 config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
@@ -260,13 +278,15 @@ def create_embedding(text):
         except Exception as exc:
             print(f"[WARNING] Gemini embedding model unavailable ({EMBEDDING_MODEL}): {exc}. Falling back to local embeddings.")
 
-    if _local_embedder is None:
+    try:
+        embedder = _get_local_embedder()
+    except (ImportError, Exception) as exc:
         raise RuntimeError(
             "No valid embedding backend is available. "
             "Install sentence-transformers or provide a valid Gemini embeddings model."
-        )
+        ) from exc
 
-    embedding = _local_embedder.encode(text)
+    embedding = embedder.encode(text)
     return embedding.tolist()
 
 
@@ -337,7 +357,8 @@ def build_database():
         pickle.dump(
             {
                 "data": df,
-                "texts": texts
+                "texts": texts,
+                "embedding_dim": dimension,
             },
             file
         )
@@ -397,12 +418,27 @@ def search_bis(query, top_k=3):
 
         return []
 
+    # Create query embedding, keeping its dimension compatible with the index.
+    # Decide which backend matches the index dimension so it works whether the
+    # index was built with local (384-d) or Gemini (3072-d) embeddings.
+    try:
+        local_dim = len(_get_local_embedder().encode("_")) if _get_local_embedder() is not None else None
+    except Exception:
+        local_dim = None
 
-    # Create query embedding
-    query_embedding = create_embedding(
-        query
-    )
+    query_embedding = None
+    if index.d == local_dim:
+        query_embedding = create_embedding(query, force_local=True)
+    else:
+        query_embedding = create_embedding(query)
 
+    if len(query_embedding) != index.d:
+        raise RuntimeError(
+            f"Embedding dimension mismatch: index is {index.d}-dimensional but "
+            f"the query embedding is {len(query_embedding)}-dimensional. "
+            "Rebuild the vector index with the current embedding model: "
+            "python ai/rag.py build"
+        )
 
     query_vector = np.array(
         [query_embedding],
@@ -523,6 +559,7 @@ def is_bis_question(query):
         "indian standard",
         "standard",
         "certification",
+        "certify",
         "hallmark",
         "testing",
         "lab",
@@ -538,7 +575,7 @@ def is_bis_question(query):
         return True
 
     try:
-        response = client.models.generate_content(
+        response = _get_client().models.generate_content(
             model=MODEL_NAME,
             contents=(
                 "You are a BIS domain classifier.\n\n"
@@ -704,7 +741,7 @@ BIS knowledge above.
     # LLM
     # --------------------------------------------------------
 
-    response = client.models.generate_content(
+    response = _get_client().models.generate_content(
         model=MODEL_NAME,
         contents=user_prompt,
         config=types.GenerateContentConfig(
@@ -757,6 +794,16 @@ INTENT_PATTERNS = {
         "get certified",
         "bis certification",
         "certify",
+    ],
+    "HALLMARKING": [
+        "hallmark",
+        "hallmarking",
+    ],
+    "LABORATORY": [
+        "laboratory",
+        "testing laboratory",
+        "test lab",
+        "recognized lab",
     ],
     "DOCUMENTS": [
         "what documents",
@@ -846,6 +893,10 @@ def detect_intent(query):
         return "TESTING"
     if "certif" in text:
         return "CERTIFICATION"
+    if "hallmark" in text:
+        return "HALLMARKING"
+    if "laborator" in text or " lab" in text:
+        return "LABORATORY"
     if "document" in text:
         return "DOCUMENTS"
     if "compliant" in text or "compliance" in text:
@@ -862,6 +913,35 @@ def detect_product(query):
         if any(pattern in text for pattern in patterns):
             return product
     return None
+
+
+SERVICE_GUIDANCE = {
+    "CERTIFICATION": (
+        "BIS certification is the process through which the Bureau of Indian Standards grants "
+        "a licence (typically under the ISI-mark scheme) to manufacture a product that conforms "
+        "to a relevant Indian Standard. The general route includes: (1) identification of the "
+        "applicable Indian Standard and the certification scheme for your product, "
+        "(2) establishment of a qualified factory with an in-house or recognized test facility, "
+        "(3) submission of the application with technical documentation to BIS, "
+        "(4) factory audit and sample testing by BIS, and (5) grant of the licence if found conforming. "
+        "Tell me the specific product you manufacture so I can give you the exact standard and steps."
+    ),
+    "HALLMARKING": (
+        "BIS hallmarking is the official certification by the Bureau of Indian Standards of the "
+        "purity and fineness of gold and silver jewellery sold in India. It assures consumers "
+        "that the metal conforms to the applicable Indian Standard, verified against the BIS "
+        "Hallmarking scheme, which includes a HUID number on each certified article. "
+        "If you would like details for a specific jewellery product or registration as a "
+        "jeweller, ask me about your product so I can guide you."
+    ),
+    "LABORATORY": (
+        "To find a relevant BIS testing laboratory, you should consult BIS-recognized testing "
+        "laboratories that are empanelled for the specific Indian Standard of your product. "
+        "BIS lists its recognized laboratories on the official BIS portal, and your samples "
+        "must be tested in a laboratory recognized for that standard and scheme before licence "
+        "grant. Tell me your product so I can point you to the correct testing guidance."
+    ),
+}
 
 
 def build_structured_sections(results, product_name=None):
@@ -911,9 +991,75 @@ def build_structured_sections(results, product_name=None):
     return sections
 
 
+def build_local_answer(results, product_name=None):
+    """Compose a plain-language answer from retrieved records without calling any LLM."""
+    if not results:
+        return "I could not find verified BIS information for this query in the available knowledge base."
+
+    first = results[0]
+    lines = []
+    lines.append(f"**{first.get('product', product_name or 'This product')}** — {first.get('standard', 'BIS Standard')}")
+    if first.get("requirements"):
+        lines.append(f"**Requirements:** {first.get('requirements')}")
+    if first.get("safety"):
+        lines.append(f"**Safety:** {first.get('safety')}")
+    if first.get("tests"):
+        lines.append(f"**Tests:** {first.get('tests')}")
+    if first.get("certification"):
+        lines.append(f"**Certification:** {first.get('certification')}")
+    if first.get("source"):
+        lines.append(f"**Source:** {first.get('source')}")
+    return "\n\n".join(lines)
+
+
 # ============================================================
 # COMPLETE RAG PIPELINE
 # ============================================================
+
+def get_covered_products():
+    """Return the set of product names that have verified data in this system."""
+    global _covered_products
+    if _covered_products is None:
+        names = set(PRODUCT_KEYWORDS)
+        try:
+            df = load_bis_data()
+            names.update(
+                str(x).strip()
+                for x in df["Products"].tolist()
+                if x is not None and str(x).strip()
+            )
+        except Exception:
+            pass
+        _covered_products = names
+    return _covered_products
+
+
+def extract_product_candidate(query):
+    """Guess a product-like noun phrase so we can say 'no verified data' for products
+    that are NOT in the verified knowledge base without ever hallucinating a standard."""
+    text = re.sub(r"\s+", " ", (query or "").strip()).strip()
+    if not text:
+        return None
+
+    patterns = [
+        r"\bis there a\s+(?:bis\s+)?standard\s+for\s+([a-z0-9 ,&'-]{2,40}?)(?=[,.;:!?]|$)",
+        r"\b(?:standard|standards)\s+for\s+([a-z0-9 ,&'-]{2,40}?)(?=[,.;:!?]|$)",
+        r"\b(?:certify|certifying|manufacture|manufacturing|making|make|sell|export|import|produce|producing)\s+([a-z0-9 ,&'-]{2,40}?)(?=[,.;:!?]|\s+which\b|\s+that\b|\s+and\b|\s+for\b|$)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            candidate = re.sub(r"\s+", " ", match.group(1)).strip().strip(" ,'-")
+            if candidate and len(candidate) >= 3:
+                return candidate
+
+    # A short bare-phrase query with no service cue is likely just a product name.
+    if len(text.split()) <= 4 and not re.search(
+        r"(hallmark|laboratory|laboratory|help|call|hello|hi|thank|options|list)", text, re.IGNORECASE
+    ):
+        return text.strip().strip("?")
+    return None
+
 
 def ask_bis(query):
 
@@ -949,7 +1095,54 @@ def ask_bis(query):
     # --------------------------------------------------------
     # STEP 2: Ask for clarification when product is missing
     # --------------------------------------------------------
+    candidate = extract_product_candidate(query)
+    if candidate and re.match(r"^(?:my|your|the|this|that|a|an|some)\s+(?:product|item|goods?|things?)\b", candidate, re.IGNORECASE):
+        candidate = None
+
+    if candidate:
+        candidate_lower = candidate.lower()
+        matched_covered = None
+        for covered_name in get_covered_products():
+            covered_lower = covered_name.lower()
+            if covered_lower in candidate_lower or candidate_lower in covered_lower:
+                matched_covered = covered_name
+                break
+
+        if matched_covered:
+            detected_product = matched_covered
+        else:
+            guidance = SERVICE_GUIDANCE.get(detected_intent)
+            not_found_text = (
+                "I don't have verified BIS information for "
+                f"'{candidate}' in the knowledge base yet. My data is limited to "
+                "25 verified BIS products (for example: pressure cooker, cement, "
+                "LED lamps, ceiling fans, helmets, LPG gas stoves, laptops, "
+                "headphones, and packaged drinking water). I will not guess a "
+                "standard for products I have no verified data for."
+            )
+            answer = not_found_text + ("\n\n" + guidance if guidance else "")
+            return {
+                "answer": answer,
+                "results": [],
+                "intent": "UNCOVERED_PRODUCT" if detected_intent in ("UNKNOWN", None) else detected_intent,
+                "product": candidate,
+                "needs_clarification": False,
+                "confidence": 0.2,
+                "sections": build_structured_sections([]),
+            }
+
     if detected_product is None:
+        guidance = SERVICE_GUIDANCE.get(detected_intent)
+        if guidance:
+            return {
+                "answer": guidance,
+                "results": [],
+                "intent": detected_intent,
+                "product": None,
+                "needs_clarification": True,
+                "confidence": 0.35,
+                "sections": build_structured_sections([]),
+            }
         return {
             "answer": (
                 "I can help, but I need the product name first. For example: "
@@ -974,10 +1167,11 @@ def ask_bis(query):
     # --------------------------------------------------------
     # STEP 4: Generate answer
     # --------------------------------------------------------
-    answer = generate_answer(
-        query,
-        results
-    )
+    try:
+        answer = generate_answer(query, results)
+    except Exception:
+        # No API key / LLM offline: compose a grounded answer from retrieved records
+        answer = build_local_answer(results, product_name=detected_product)
 
     structured = build_structured_sections(results, product_name=detected_product)
 

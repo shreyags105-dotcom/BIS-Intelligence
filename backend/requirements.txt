@@ -1,8 +1,13 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 sqlalchemy
 passlib[bcrypt]
 python-jose[cryptography]
 pandas
 openpyxl
+faiss-cpu
+sentence-transformers
+numpy
+google-genai
+python-dotenv
