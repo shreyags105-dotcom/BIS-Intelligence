@@ -3,7 +3,18 @@ import re
 import sys
 from pathlib import Path
 
+<<<<<<< Updated upstream
 import pandas as pd
+=======
+def sanitize(val):
+    """Replaces None, empty strings, 'nan' text, or empty lists with clear fallback text."""
+    if val is None or str(val).strip().lower() in ["nan", "none", ""]:
+        return ["Standard BIS Guidelines Apply"]
+    if isinstance(val, list):
+        cleaned_list = [item for item in val if item and str(item).strip().lower() not in ["nan", "none", ""]]
+        return cleaned_list if cleaned_list else ["Standard BIS Guidelines Apply"]
+    return val
+>>>>>>> Stashed changes
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data" / "BIS_Intelligence_Rohan_25_Products_VERIFIED_UPDATED.xlsx"
@@ -108,6 +119,23 @@ def load_excel_knowledge_base():
             product_name = clean_text(product_val)
             is_number = clean_text(is_val)
 
+<<<<<<< Updated upstream
+=======
+            def parse_list(val):
+                if pd.isna(val) or val is None:
+                    return []
+                val_str = clean_text(val)
+                if not val_str or val_str.lower() in ["nan", "none", "not specified"]:
+                    return []
+                items = []
+                for line in val_str.splitlines():
+                    for item in line.split(";"):
+                        cleaned = clean_text(item.strip(" •\t\r\n-"))
+                        if cleaned and cleaned.lower() not in ["nan", "none", "not specified"]:
+                            items.append(cleaned)
+                return items
+
+>>>>>>> Stashed changes
             cert_steps = []
             for i in range(1, 6):
                 step_key = f"Certification Process — Step {i}"
@@ -132,10 +160,17 @@ def load_excel_knowledge_base():
                 "standard_title": clean_text(row.get("Standard Title")),
                 "direct_answer": f"For {product_name}, compulsory BIS certification under {is_number} applies." if is_number else f"For {product_name}, BIS guidance is available in the verified knowledge base.",
                 "why_this_applies": clean_text(row.get("Scope / Applicability")) or "Mandatory compliance.",
+<<<<<<< Updated upstream
                 "requirements": parse_list(row.get("Current Requirements from Rohan")) or parse_list(row.get("Construction Requirements")) or ["Review product requirements under the applicable standard."],
                 "safety_requirements": parse_list(row.get("Detailed Safety Requirements")) or parse_list(row.get("Current Safety from Rohan")) or ["Safety requirements are included in the relevant BIS standard."],
                 "testing": parse_list(row.get("Current Tests from Rohan")) or parse_list(row.get("Test Name")) or ["Product testing as required by the relevant BIS standard."],
                 "documents": parse_list(row.get("Required Documents / Inputs")) or ["Application form", "Test reports", "Factory documents"],
+=======
+                "requirements": sanitize(parse_list(row.get("Current Requirements from Rohan")) or parse_list(row.get("Construction Requirements"))),
+                "safety_requirements": sanitize(parse_list(row.get("Detailed Safety Requirements")) or parse_list(row.get("Current Safety from Rohan"))),
+                "testing": sanitize(parse_list(row.get("Current Tests from Rohan")) or parse_list(row.get("Test Name"))),
+                "documents": sanitize(parse_list(row.get("Required Documents / Inputs"))),
+>>>>>>> Stashed changes
                 "certification": {
                     "scheme": clean_text(row.get("Certification Scheme / Route (VERIFIED)")) or "Scheme-I (ISI Mark)",
                     "steps": cert_steps,
@@ -212,6 +247,7 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
 
     question_lower = str(question).lower()
 
+<<<<<<< Updated upstream
     if any(term in question_lower for term in ("cricket", "football", "weather", "stock price", "today's score", "match winner")):
         return unsupported_response(
             "I can assist with Indian Standards and BIS-related services. I do not have verified BIS information for this query."
@@ -228,6 +264,19 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
         return unsupported_response(
             "I do not have verified BIS information for that standard in the active knowledge base."
         )
+=======
+    has_explicit_standard = bool(re.search(r"\bis\s*\d", question_lower))
+    if has_explicit_standard or not _looks_conversational(question_lower):
+
+        # 1. Match against Rohan's 25-product Excel database
+        generic_words = {
+            "bureau", "indian", "standard", "standards", "bis", "is", "mark", "png",
+            "safety", "test", "testing", "electric", "domestic", "product", "notice",
+        }
+        best_match = None
+        best_score = 0
+        question_norm = re.sub(r"[^a-z0-9]", "", question_lower)
+>>>>>>> Stashed changes
 
     if "hallmark" in question_lower:
         return response_aliases({
@@ -249,6 +298,7 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
             "trust_status": "VERIFIED_ONLY",
         })
 
+<<<<<<< Updated upstream
     if ("laborator" in question_lower or "testing lab" in question_lower or "testing laboratory" in question_lower):
         return response_aliases({
             "intent": "LABORATORY_GUIDANCE",
@@ -268,6 +318,26 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
             "next_action": "Identify a BIS-recognized laboratory for the applicable product standard.",
             "trust_status": "VERIFIED_ONLY",
         })
+=======
+            score = 0
+            if std_id and std_id in question_lower:
+                score = 1000
+            elif std_id:
+                std_norm = re.sub(r"[^a-z0-9]", "", std_id)
+                if std_norm and (std_norm in question_norm or question_norm in std_norm):
+                    score = 950
+            elif product_key and product_key in question_lower:
+                score = 500
+            elif normalized_key and normalized_key in question_lower:
+                score = 400
+            else:
+                if len(significant_words) >= 3:
+                    score = 300 + len(significant_words)
+                elif len(significant_words) == 2:
+                    score = 200 + len(significant_words)
+                elif len(non_generic) == 1 and all(len(w) >= 5 for w in non_generic):
+                    score = 150
+>>>>>>> Stashed changes
 
     if "certif" in question_lower:
         return response_aliases({
@@ -328,6 +398,10 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
     if best_match:
         return response_aliases(best_match)
 
+<<<<<<< Updated upstream
+=======
+    # 2. Fallback: Query Ujjwala's RAG AI engine
+>>>>>>> Stashed changes
     if ask_bis:
         try:
             rag_response = ask_bis(question)
@@ -360,7 +434,29 @@ def query_knowledge_base(question: str, mode: str = "industry") -> dict:
         except Exception as e:
             print(f"[ERROR] RAG processing failed: {e}")
 
+<<<<<<< Updated upstream
     return unsupported_response()
+=======
+    # 3. Default Unsupported Response
+    return {
+        "intent": "UNSUPPORTED",
+        "product": "",
+        "standard_id": "",
+        "standard_title": "",
+        "direct_answer": "No verified BIS standard record was found for this specific query.",
+        "why_this_applies": "",
+        "requirements": [],
+        "safety_requirements": [],
+        "testing": [],
+        "documents": [],
+        "certification": None,
+        "compliance_roadmap": [],
+        "related_standards": [],
+        "official_source": None,
+        "next_action": "Please search for a covered product.",
+        "trust_status": "UNVERIFIED"
+    }
+>>>>>>> Stashed changes
 
 
 def get_standard_by_id(standard_id: str) -> dict:

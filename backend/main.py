@@ -1,16 +1,26 @@
+<<<<<<< Updated upstream
 from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
+=======
+import re
+from typing import List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, status
+>>>>>>> Stashed changes
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Optional, List
-import re
 
-import models
+from auth import create_access_token, hash_password, verify_password
 from database import engine, get_db
-from auth import hash_password, verify_password, create_access_token
-from knowledge_base import query_knowledge_base, get_standard_by_id, KNOWLEDGE_BASE
+from knowledge_base import KNOWLEDGE_BASE, get_standard_by_id, query_knowledge_base
+import models
 
-app = FastAPI(title="BIS AI Assistant API", docs_url="/docs", redoc_url="/redoc")
+app = FastAPI(
+    title="BIS AI Assistant API",
+    description="Backend API for BIS Product Certification & Intelligence Assistant",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,9 +41,11 @@ class UserSignup(BaseModel):
     password: str
     role: str = "consumer"
 
+
 class UserLogin(BaseModel):
     email: str
     password: str
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -41,13 +53,16 @@ class TokenResponse(BaseModel):
     user_id: int
     full_name: str
 
+
 class ChatRequest(BaseModel):
     question: str
     mode: Optional[str] = "consumer"
 
+
 class ComplianceRequest(BaseModel):
     product_name: str
     standard_id: Optional[str] = "IS 2347"
+
 
 class FeedbackRequest(BaseModel):
     question: str
@@ -56,11 +71,12 @@ class FeedbackRequest(BaseModel):
 
 # --- AUTH ENDPOINTS ---
 
-@app.post("/auth/signup", status_code=status.HTTP_201_CREATED)
+@app.post("/auth/signup", status_code=status.HTTP_201_CREATED, tags=["Authentication"])
 def signup(user_data: UserSignup, db: Session = Depends(get_db)):
     existing_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email is already registered")
+    
     hashed_pwd = hash_password(user_data.password)
     new_user = models.User(
         full_name=user_data.full_name,
@@ -73,11 +89,13 @@ def signup(user_data: UserSignup, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return {"message": "User created successfully", "user_id": new_user.id}
 
-@app.post("/auth/login", response_model=TokenResponse)
+
+@app.post("/auth/login", response_model=TokenResponse, tags=["Authentication"])
 def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
     if not user or not verify_password(user_credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    
     access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
     return {
         "access_token": access_token,
@@ -87,12 +105,40 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     }
 
 
-# --- CORE AI & CHAT ENDPOINTS ---
+# --- HELPER FUNCTIONS ---
 
-@app.post("/chat")
+def clean_query(user_input: str) -> str:
+    """Strips common conversational filler words to extract core product keywords."""
+    if not user_input:
+        return ""
+    stop_words = {
+        "how", "do", "i", "certify", "is", "there", "a", "an", "for", 
+        "what", "the", "mark", "bis", "standard", "quality", "certification", 
+        "process", "requirements", "compliance", "give", "me", "tell", "about"
+    }
+    # Clean non-alphanumeric characters except spaces
+    cleaned = re.sub(r"[^\w\s]", "", user_input.lower())
+    words = cleaned.split()
+    filtered = [w for w in words if w not in stop_words]
+    
+    # Return cleaned string if words remain, otherwise return original input
+    return " ".join(filtered) if filtered else user_input
+
+
+# --- CHAT & COMPLIANCE ENDPOINTS ---
+
+@app.post("/chat", tags=["Assistant"])
 def chat_endpoint(request: ChatRequest):
     try:
-        kb_result = query_knowledge_base(request.question, mode=request.mode or "consumer")
+        raw_question = request.question.strip() if request.question else ""
+        cleaned_q = clean_query(raw_question)
+        
+        # Query Knowledge Base using both cleaned input and fallback to raw input
+        kb_result = query_knowledge_base(cleaned_q or raw_question, mode=request.mode or "consumer")
+
+        # Fallback query attempt with original text if unsupported
+        if kb_result.get("intent") == "UNSUPPORTED" and cleaned_q != raw_question:
+            kb_result = query_knowledge_base(raw_question, mode=request.mode or "consumer")
 
         # Map KB fields to what the frontend expects
         official_source = kb_result.get("official_source") or {}
@@ -106,13 +152,16 @@ def chat_endpoint(request: ChatRequest):
             "product": kb_result.get("product", ""),
             "intent": kb_result.get("intent", "UNKNOWN"),
             "requirements": kb_result.get("requirements", []),
+            "safety_requirements": kb_result.get("safety_requirements", []),
             "testing": kb_result.get("testing", []),
+            "documents": kb_result.get("documents", []),
             "certification": kb_result.get("certification", {}),
             "compliance_roadmap": kb_result.get("compliance_roadmap", []),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+<<<<<<< Updated upstream
 @app.get("/standards")
 def list_standards():
     standards = []
@@ -170,10 +219,16 @@ async def analyze_document(file: UploadFile = File(...)):
     }
 
 @app.post("/compliance-plan")
+=======
+
+@app.post("/compliance-plan", tags=["Compliance"])
+>>>>>>> Stashed changes
 def generate_compliance_plan(request: ComplianceRequest):
-    kb_item = get_standard_by_id(request.standard_id or request.product_name)
+    query_target = request.standard_id or request.product_name
+    kb_item = get_standard_by_id(query_target)
     if not kb_item or kb_item.get("intent") == "UNSUPPORTED":
         raise HTTPException(status_code=404, detail="Standard not found in knowledge base")
+    
     return {
         "product": kb_item.get("product", request.product_name),
         "standard_id": kb_item.get("standard_id", request.standard_id),
@@ -188,9 +243,9 @@ def generate_compliance_plan(request: ComplianceRequest):
     }
 
 
-# --- STANDARDS INDEX (used by BisHome.jsx /standards endpoint) ---
+# --- STANDARDS INDEX ---
 
-@app.get("/standards")
+@app.get("/standards", tags=["Standards"])
 def list_standards():
     standards = []
     seen = set()
@@ -206,11 +261,13 @@ def list_standards():
             })
     return {"standards": standards}
 
-@app.get("/standard/{standard_id}")
+
+@app.get("/standard/{standard_id}", tags=["Standards"])
 def get_standard(standard_id: str):
     data = get_standard_by_id(standard_id)
     if not data or data.get("intent") == "UNSUPPORTED":
         raise HTTPException(status_code=404, detail="Standard not found")
+    
     cert = data.get("certification") or {}
     return {
         "id": re.sub(r"\s+", "", data.get("standard_id", standard_id)),
@@ -224,9 +281,9 @@ def get_standard(standard_id: str):
     }
 
 
-# --- BIS SERVICE ENDPOINTS (used by BisHome.jsx service cards) ---
+# --- BIS SERVICE INFORMATIONAL ENDPOINTS ---
 
-@app.get("/certification")
+@app.get("/certification", tags=["Information"])
 def get_certification_info():
     return {
         "what_is_it": (
@@ -244,7 +301,8 @@ def get_certification_info():
         "source": "https://www.bis.gov.in",
     }
 
-@app.get("/hallmarking")
+
+@app.get("/hallmarking", tags=["Information"])
 def get_hallmarking_info():
     return {
         "what_is_it": (
@@ -270,7 +328,8 @@ def get_hallmarking_info():
         "source": "https://www.bis.gov.in/hallmarking",
     }
 
-@app.get("/labs")
+
+@app.get("/labs", tags=["Information"])
 def get_labs_info():
     return {
         "guidance": (
@@ -287,9 +346,9 @@ def get_labs_info():
     }
 
 
-# --- FEEDBACK (used by BisHome.jsx) ---
+# --- FEEDBACK ENDPOINT ---
 
-@app.post("/feedback")
+@app.post("/feedback", tags=["Feedback"])
 def submit_feedback(request: FeedbackRequest):
     print(f"[FEEDBACK] Question: {request.question} | Rating: {request.rating}/5")
-    return {"message": "Feedback recorded", "rating": request.rating}
+    return {"message": "Feedback recorded successfully", "rating": request.rating}
