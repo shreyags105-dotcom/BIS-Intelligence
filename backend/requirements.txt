@@ -1,9 +1,17 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 sqlalchemy
 passlib[bcrypt]
 python-jose[cryptography]
 pandas
 openpyxl
+<<<<<<< HEAD
 python-multipart
+=======
+faiss-cpu
+sentence-transformers
+numpy
+google-genai
+python-dotenv
+>>>>>>> c6a39dabbe75827f5bc43f51fa68f0acfc9d69f2
