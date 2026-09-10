@@ -107,3 +107,14 @@ def test_ask_bis_accepts_pressure_cooker_query():
     assert result["needs_clarification"] is False
     assert result["intent"] == "MANUFACTURING_GUIDANCE"
     assert result["answer"]
+
+
+def test_ask_bis_includes_p1_guidance_fields():
+    result = ask_bis("I want to manufacture a pressure cooker.")
+    sections = result["sections"]
+    assert "ai_explainer" in sections
+    assert "comparison" in sections
+    assert "next_action" in sections
+    assert "trust_status" in sections
+    assert result["confidence"] >= 0.5
+    assert result["follow_up_questions"]
