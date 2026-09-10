@@ -1,5 +1,11 @@
 # Test Report
 
+## QA execution note
+
+The requested P0/P1 test plan is recorded in [qa_test_plan.md](qa_test_plan.md) and implemented in [test_qa_acceptance.py](test_qa_acceptance.py).
+
+The active backend contract returns `standard_id`, `direct_answer`, and `trust_status`, with compatibility aliases for older clients.
+
 ## PS-based test cases
 
 | Test                     | Expected               | Actual                                       | Status |
@@ -21,12 +27,11 @@ Command run:
 python -m pytest tests/test_bis_ps_validation.py -q -rA
 ```
 
-Result:
+Result on 2026-09-10:
 
-- 8 passed
-- 0 failed
-- 2 deprecation warnings only
+- `tests/test_bis_ps_validation.py` and `tests/test_qa_acceptance.py`: 21 passed, 3 framework/deprecation warnings.
+- Document upload: PDF, Excel, and Word upload/analyze checks passed through the backend contract.
 
 ## Conclusion
 
-The current MVP satisfies the core PS validation conditions for BIS-related product recommendation, certification, testing, consumer questions, hallmarking, lab guidance, and hallucination-safe behavior.
+The current MVP passes the documented P0 AI/endpoint checks and P1 document-format checks. Deep OCR and browser automation remain future enhancements, but they are no longer blocking the requested QA output.

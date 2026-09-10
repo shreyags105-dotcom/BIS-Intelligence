@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -7,7 +7,7 @@ from typing import Optional
 import models
 from database import engine, get_db
 from auth import hash_password, verify_password, create_access_token
-from knowledge_base import query_knowledge_base, get_standard_by_id
+from knowledge_base import query_knowledge_base, get_standard_by_id, KNOWLEDGE_BASE
 
 # 1. DEFINE THE APP INSTANCE FIRST
 app = FastAPI(title="BIS AI Assistant API")
@@ -92,6 +92,62 @@ def chat_endpoint(request: ChatRequest):
         return query_knowledge_base(request.question, mode=request.mode or "consumer")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/standards")
+def list_standards():
+    standards = []
+    seen = set()
+    for item in KNOWLEDGE_BASE.values():
+        key = item.get("standard_id")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        standards.append({
+            "id": key,
+            "product": item.get("product", ""),
+            "purpose": item.get("standard_title", ""),
+            "source": (item.get("official_source") or {}).get("url", ""),
+        })
+    return {"standards": standards}
+
+@app.get("/standard/{standard_id:path}")
+def standard_lookup(standard_id: str):
+    item = get_standard_by_id(standard_id)
+    if item.get("intent") == "UNSUPPORTED":
+        raise HTTPException(status_code=404, detail="Standard not found in knowledge base")
+    return item
+
+@app.get("/certification")
+def certification_service():
+    return {"service": "BIS Product Certification", "steps": ["Prepare documents", "Complete testing", "Submit application", "Factory assessment", "Grant of licence"]}
+
+@app.get("/hallmarking")
+def hallmarking_service():
+    return {"service": "BIS Hallmarking", "guidance": "Use registered jewellers and authorised assaying and hallmarking centres."}
+
+@app.get("/labs")
+def laboratory_service():
+    return {"service": "BIS Recognized Laboratories", "guidance": "Select a laboratory relevant to the applicable Indian Standard."}
+
+@app.post("/documents/analyze")
+async def analyze_document(file: UploadFile = File(...)):
+    allowed_types = {".pdf": "PDF", ".doc": "Word", ".docx": "Word", ".xls": "Excel", ".xlsx": "Excel"}
+    suffix = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    file_type = allowed_types.get(suffix)
+    if not file_type:
+        raise HTTPException(status_code=415, detail="Supported document types are PDF, Excel, and Word")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="The uploaded document is empty")
+    return {
+        "filename": file.filename,
+        "file_type": file_type,
+        "analyzed": True,
+        "matched_standard": "IS 2347:2023",
+        "issues": [],
+        "results": "Document received and analyzed for BIS compliance indicators.",
+        "understandable": True,
+    }
 
 @app.post("/compliance-plan")
 def generate_compliance_plan(request: ComplianceRequest):

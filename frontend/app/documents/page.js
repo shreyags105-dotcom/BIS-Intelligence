@@ -7,25 +7,37 @@ export default function DocumentAnalysisPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasResults, setHasResults] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setFileName(file.name);
-      startAnalysis();
+      startAnalysis(file);
     }
   };
 
-  const startAnalysis = () => {
+  const startAnalysis = async (file) => {
     setIsAnalyzing(true);
     setHasResults(false);
-
-    // Simulate OCR and AI Analysis delay
-    setTimeout(() => {
-      setIsAnalyzing(false);
+    setAnalysisResult(null);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${API_URL}/documents/analyze`, { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || 'Document analysis failed');
+      setAnalysisResult(result);
       setHasResults(true);
-    }, 2000);
+    } catch (analysisError) {
+      setError(analysisError.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -46,7 +58,7 @@ export default function DocumentAnalysisPage() {
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileChange} 
-            accept=".pdf,.doc,.docx" 
+            accept=".pdf,.xls,.xlsx,.doc,.docx" 
             className="hidden" 
           />
 
@@ -62,10 +74,10 @@ export default function DocumentAnalysisPage() {
             <h3 className="font-bold text-lg text-[#3A261C]">
               {isAnalyzing 
                 ? 'Extracting Compliance Data...' 
-                : 'Drag and drop your compliance PDF'}
+                : 'Upload a compliance document'}
             </h3>
             <p className="text-xs text-[#806044] mt-1">
-              Supports IS Audit Certificates, Test Sheets, and Specification Reports
+              Supports PDF, Excel, and Word files
             </p>
           </div>
 
@@ -78,6 +90,8 @@ export default function DocumentAnalysisPage() {
           </button>
         </div>
 
+        {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><AlertCircle className="h-4 w-4" />{error}</div>}
+
         {/* Dynamic Analysis Results Card */}
         {hasResults && (
           <div className="bg-[#FFF9F1] border border-[#E1D1BC] rounded-3xl p-6 space-y-6 shadow-sm animate-fade-in">
@@ -88,7 +102,7 @@ export default function DocumentAnalysisPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-base text-[#3A261C]">Document Verification Complete</h4>
-                  <p className="text-xs text-[#705543]">{fileName || 'Sample_Test_Report.pdf'}</p>
+                  <p className="text-xs text-[#705543]">{analysisResult?.filename || fileName}</p>
                 </div>
               </div>
               <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full border border-emerald-300">
@@ -103,7 +117,7 @@ export default function DocumentAnalysisPage() {
                   Matched Standard
                 </span>
                 <span className="font-black text-base text-[#3A261C] block mt-1">
-                  IS 2347 : 2017
+                  {analysisResult?.matched_standard || 'Not identified'}
                 </span>
                 <p className="text-xs text-[#6B5242] mt-0.5">Domestic Pressure Cookers — Specifications</p>
               </div>
@@ -113,9 +127,9 @@ export default function DocumentAnalysisPage() {
                   Safety Valve Pressure Test
                 </span>
                 <span className="font-black text-base text-[#3A261C] block mt-1">
-                  1.21 kg/cm² (Nominal)
+                  {analysisResult?.issues?.length ? `${analysisResult.issues.length} issue(s) identified` : 'No issues identified'}
                 </span>
-                <p className="text-xs text-[#6B5242] mt-0.5">Within permissible threshold range</p>
+                <p className="text-xs text-[#6B5242] mt-0.5">{analysisResult?.results}</p>
               </div>
             </div>
           </div>

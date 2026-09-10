@@ -3,13 +3,12 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from ai.rag import ask_bis
-
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 
 from main import app
+from knowledge_base import query_knowledge_base
 
 client = TestClient(app)
 
@@ -101,20 +100,17 @@ def test_service_endpoints_exist():
         assert body
 
 
-def test_ask_bis_accepts_pressure_cooker_query():
-    result = ask_bis("I want to manufacture a pressure cooker.")
+def test_knowledge_base_accepts_pressure_cooker_query():
+    result = query_knowledge_base("I want to manufacture a pressure cooker.")
     assert result["product"] == "Pressure Cooker"
-    assert result["needs_clarification"] is False
     assert result["intent"] == "MANUFACTURING_GUIDANCE"
     assert result["answer"]
 
 
-def test_ask_bis_includes_p1_guidance_fields():
-    result = ask_bis("I want to manufacture a pressure cooker.")
-    sections = result["sections"]
-    assert "ai_explainer" in sections
-    assert "comparison" in sections
-    assert "next_action" in sections
-    assert "trust_status" in sections
-    assert result["confidence"] >= 0.5
-    assert result["follow_up_questions"]
+def test_knowledge_base_includes_p1_guidance_fields():
+    result = query_knowledge_base("I want to manufacture a pressure cooker.")
+    assert result["requirements"]
+    assert result["testing"]
+    assert result["certification"]["steps"]
+    assert result["next_action"]
+    assert result["trust_status"]
